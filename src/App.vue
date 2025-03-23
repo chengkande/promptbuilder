@@ -53,6 +53,103 @@ const outputMarkdown = computed(() => {
   return output
 })
 
+// 保存为XML文件
+const saveToXML = () => {
+  // 创建XML内容
+  let xmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n'
+  xmlContent += '<promptBuilder>\n'
+  
+  // 添加提示词
+  xmlContent += `  <prompt><![CDATA[${promptText.value}]]></prompt>\n`
+  
+  // 添加附件
+  if (attachments.value.length > 0) {
+    xmlContent += '  <attachments>\n'
+    attachments.value.forEach(attachment => {
+      xmlContent += `    <attachment>\n`
+      xmlContent += `      <name><![CDATA[${attachment.name}]]></name>\n`
+      xmlContent += `      <content><![CDATA[${attachment.content}]]></content>\n`
+      xmlContent += `    </attachment>\n`
+    })
+    xmlContent += '  </attachments>\n'
+  }
+  
+  xmlContent += '</promptBuilder>'
+  
+  // 创建Blob对象
+  const blob = new Blob([xmlContent], { type: 'text/xml' })
+  
+  // 创建下载链接
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'prompt_builder.xml'
+  document.body.appendChild(a)
+  a.click()
+  
+  // 清理
+  URL.revokeObjectURL(url)
+  document.body.removeChild(a)
+}
+
+// 打开XML文件
+const openFromXML = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  if (!input.files || input.files.length === 0) return
+  
+  const file = input.files[0]
+  
+  // 限制文件大小为1MB
+  const maxSize = 1024 * 1024 // 1MB
+  if (file.size > maxSize) {
+    alert(`文件 "${file.name}" 太大，不能超过1MB`)
+    return
+  }
+  
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    try {
+      const xmlText = e.target?.result as string
+      const parser = new DOMParser()
+      const xmlDoc = parser.parseFromString(xmlText, 'text/xml')
+      
+      // 解析提示词
+      const promptElement = xmlDoc.querySelector('prompt')
+      if (promptElement) {
+        promptText.value = promptElement.textContent || ''
+      }
+      
+      // 解析附件
+      const attachmentElements = xmlDoc.querySelectorAll('attachment')
+      if (attachmentElements.length > 0) {
+        // 清空现有附件
+        attachments.value = []
+        
+        // 添加新附件
+        attachmentElements.forEach(attachmentElement => {
+          const nameElement = attachmentElement.querySelector('name')
+          const contentElement = attachmentElement.querySelector('content')
+          
+          if (nameElement && contentElement) {
+            const id = Date.now().toString() + Math.random().toString(36).substr(2, 5)
+            attachments.value.push({
+              id,
+              name: nameElement.textContent || 'Untitled',
+              content: contentElement.textContent || ''
+            })
+          }
+        })
+      }
+    } catch (err) {
+      alert('解析XML文件失败: ' + err)
+    }
+  }
+  
+  reader.readAsText(file)
+  // 重置input，以便可以再次选择同一文件
+  input.value = ''
+}
+
 // Add from clipboard
 const addFromClipboard = async () => {
   try {
@@ -170,6 +267,16 @@ const copyToClipboard = async () => {
 const togglePreview = () => {
   showPreview.value = !showPreview.value
 }
+
+// 用于触发文件选择的ref
+const fileInputRef = ref<HTMLInputElement | null>(null)
+
+// 触发文件选择对话框
+const triggerFileSelect = () => {
+  if (fileInputRef.value) {
+    fileInputRef.value.click()
+  }
+}
 </script>
 
 <template>
@@ -179,7 +286,20 @@ const togglePreview = () => {
     <div class="main-content">
       <div class="input-section">
         <div class="prompt-section">
-          <h2>Prompt Input</h2>
+          <div class="prompt-header">
+            <h2>Prompt Input</h2>
+            <div class="prompt-actions">
+              <button @click="saveToXML" class="btn">Save</button>
+              <button @click="triggerFileSelect" class="btn">Open</button>
+              <input 
+                type="file" 
+                ref="fileInputRef" 
+                @change="openFromXML" 
+                accept=".xml" 
+                style="display: none;"
+              />
+            </div>
+          </div>
           <textarea
             v-model="promptText"
             placeholder="Enter your prompt here..."
@@ -338,6 +458,18 @@ h3 {
   height: 40%;
   display: flex;
   flex-direction: column;
+}
+
+.prompt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.prompt-actions {
+  display: flex;
+  gap: 10px;
 }
 
 .attachments-section{
