@@ -73,19 +73,24 @@ const handleDrop = (event: DragEvent) => {
   
   if (event.dataTransfer?.files) {
     Array.from(event.dataTransfer.files).forEach(file => {
-      // Only process text files
-      if (file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
-        const reader = new FileReader()
-        reader.onload = (e) => {
-          const id = Date.now().toString() + Math.random().toString(36).substr(2, 5)
-          attachments.value.push({
-            id,
-            name: file.name,
-            content: e.target?.result as string || ''
-          })
-        }
-        reader.readAsText(file)
+      // 限制文件大小为1MB
+      const maxSize = 1024 * 1024; // 1MB
+      if (file.size > maxSize) {
+        alert(`文件 "${file.name}" 太大，不能超过1MB`);
+        return;
       }
+      
+      // 所有文件都作为文本文件处理
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const id = Date.now().toString() + Math.random().toString(36).substr(2, 5)
+        attachments.value.push({
+          id,
+          name: file.name,
+          content: e.target?.result as string || ''
+        })
+      }
+      reader.readAsText(file)
     })
   }
 }
