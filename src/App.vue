@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { marked } from 'marked'
-import hljs from 'highlight.js'
+import { ref, computed, onMounted } from 'vue'
+import Markdown from 'vue3-markdown-it'
 import 'highlight.js/styles/github.css'
-import 'github-markdown-css'
 
 interface Attachment {
   id: string;
@@ -22,53 +20,8 @@ const copyTipMessage = ref<string>('')
 const editingAttachmentId = ref<string | null>(null)
 const editingAttachmentName = ref<string>('')
 
-// 初始化marked设置
+// 添加全局点击事件
 onMounted(() => {
-  marked.setOptions({
-    renderer: new marked.Renderer(),
-    // @ts-ignore - highlight属性在新版本marked类型定义中可能缺失
-    highlight: function(code: string, lang: string) {
-      const language = hljs.getLanguage(lang) ? lang : 'plaintext';
-      return hljs.highlight(code, { language }).value;
-    },
-    langPrefix: 'hljs language-',
-    gfm: true,
-    breaks: true,
-    mangle: false,
-    headerIds: true,
-    headerPrefix: 'heading-',
-    sanitize: false,
-    smartLists: true,
-    smartypants: true
-  });
-
-  // 自定义renderer
-  const renderer = new marked.Renderer();
-  
-  // 增强链接渲染
-  // @ts-ignore - 类型兼容性问题，marked的类型定义可能与实际使用不一致
-  renderer.link = function(href: string, title: string | null, text: string) {
-    // @ts-ignore
-    const link = marked.Renderer.prototype.link.call(this, href, title, text);
-    return link.replace('<a ', '<a target="_blank" rel="noopener noreferrer" ');
-  };
-  
-  // 增强图片渲染
-  // @ts-ignore - 类型兼容性问题，marked的类型定义可能与实际使用不一致
-  renderer.image = function(href: string, title: string | null, text: string) {
-    return `<img src="${href}" alt="${text}" title="${title || text}" class="markdown-img" />`;
-  };
-  
-  // 设置自定义renderer
-  marked.use({ renderer });
-  
-  // 如果已经是预览状态，设置代码复制功能
-  if (showPreview.value) {
-    nextTick(() => {
-      setupCodeCopy()
-    })
-  }
-  
   // 添加全局点击事件处理程序
   document.addEventListener('click', (e) => {
     // 如果正在编辑并且点击的不是输入框，则保存名称
@@ -98,63 +51,6 @@ const outputMarkdown = computed(() => {
   }
   
   return output
-})
-
-// Preview Markdown HTML
-const previewHtml = computed(() => {
-  const html = marked(outputMarkdown.value) as string
-  return html
-})
-
-// 添加复制代码功能
-const setupCodeCopy = () => {
-  setTimeout(() => {
-    const codeBlocks = document.querySelectorAll('.markdown-body pre')
-    codeBlocks.forEach((block, index) => {
-      const copyBtn = document.createElement('button')
-      copyBtn.className = 'copy-btn'
-      copyBtn.textContent = '复制'
-      copyBtn.addEventListener('click', () => {
-        const code = block.querySelector('code')?.textContent || ''
-        navigator.clipboard.writeText(code)
-          .then(() => {
-            copyBtn.textContent = '已复制!'
-            setTimeout(() => {
-              copyBtn.textContent = '复制'
-            }, 2000)
-          })
-          .catch(err => {
-            console.error('复制失败:', err)
-          })
-      })
-      
-      // 仅当按钮不存在时添加
-      if (!block.querySelector('.copy-btn')) {
-        if (block instanceof HTMLElement) {
-          block.style.position = 'relative'
-        }
-        block.appendChild(copyBtn)
-      }
-    })
-  }, 100)
-}
-
-// 监听预览变化，设置代码复制功能
-watch(showPreview, (newVal) => {
-  if (newVal) {
-    nextTick(() => {
-      setupCodeCopy()
-    })
-  }
-})
-
-// 监听markdown内容变化，在预览状态下重新设置代码复制按钮
-watch(outputMarkdown, () => {
-  if (showPreview.value) {
-    nextTick(() => {
-      setupCodeCopy()
-    })
-  }
 })
 
 // Add from clipboard
@@ -356,7 +252,7 @@ const togglePreview = () => {
           <div v-if="!showPreview" class="markdown-output">
             <pre>{{ outputMarkdown }}</pre>
           </div>
-          <div v-else class="preview-output markdown-body" v-html="previewHtml"></div>
+          <Markdown v-else :source="outputMarkdown" class="preview-output" />
         </div>
       </div>
     </div>
@@ -619,98 +515,6 @@ h3 {
   flex: 1;
 }
 
-/* Markdown预览样式 */
-.markdown-body {
-  box-sizing: border-box;
-  min-width: 100%;
-  max-width: none;
-  margin: 0 auto;
-}
-
-.markdown-body pre {
-  background-color: #f6f8fa;
-  border-radius: 3px;
-  padding: 16px;
-  overflow: auto;
-}
-
-.markdown-body code {
-  background-color: rgba(175, 184, 193, 0.2);
-  border-radius: 3px;
-  padding: 0.2em 0.4em;
-  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
-}
-
-.markdown-body pre code {
-  background-color: transparent;
-  padding: 0;
-}
-
-.markdown-body img {
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.markdown-body table {
-  display: block;
-  width: 100%;
-  overflow: auto;
-  border-spacing: 0;
-  border-collapse: collapse;
-  margin-top: 16px;
-  margin-bottom: 16px;
-}
-
-.markdown-body table th {
-  font-weight: 600;
-  background-color: #f6f8fa;
-}
-
-.markdown-body table th,
-.markdown-body table td {
-  padding: 6px 13px;
-  border: 1px solid #d0d7de;
-}
-
-.markdown-body table tr {
-  background-color: #ffffff;
-  border-top: 1px solid #d0d7de;
-}
-
-.markdown-body table tr:nth-child(2n) {
-  background-color: #f6f8fa;
-}
-
-.markdown-body ul,
-.markdown-body ol {
-  padding-left: 2em;
-  margin-top: 0;
-  margin-bottom: 16px;
-}
-
-.markdown-body ul ul,
-.markdown-body ul ol,
-.markdown-body ol ol,
-.markdown-body ol ul {
-  margin-top: 0;
-  margin-bottom: 0;
-}
-
-.markdown-body li {
-  word-wrap: break-all;
-}
-
-.markdown-body li + li {
-  margin-top: 0.25em;
-}
-
-.markdown-body blockquote {
-  padding: 0 1em;
-  color: #57606a;
-  border-left: 0.25em solid #d0d7de;
-  margin: 0 0 16px 0;
-}
-
 .btn {
   background-color: #3498db;
   color: white;
@@ -749,8 +553,6 @@ h3 {
 }
 
 .attachments-section {
-  /* min-height: 150px; */
-  /* max-height: 30vh; */
   display: flex;
   flex-direction: column;
 }
@@ -788,70 +590,6 @@ h3 {
   h2 {
     font-size: 1rem;
   }
-}
-
-/* 代码复制按钮样式 */
-.copy-btn {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  padding: 4px 8px;
-  font-size: 12px;
-  color: #fff;
-  background-color: #3498db;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  opacity: 0.8;
-  transition: opacity 0.2s;
-}
-
-.copy-btn:hover {
-  opacity: 1;
-}
-
-/* 增强图片样式 */
-.markdown-body .markdown-img {
-  display: block;
-  max-width: 100%;
-  margin: 16px auto;
-  border-radius: 5px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* 增强链接样式 */
-.markdown-body a {
-  color: #0969da;
-  text-decoration: none;
-}
-
-.markdown-body a:hover {
-  text-decoration: underline;
-}
-
-/* 增强标题样式 */
-.markdown-body h1,
-.markdown-body h2,
-.markdown-body h3,
-.markdown-body h4,
-.markdown-body h5,
-.markdown-body h6 {
-  margin-top: 24px;
-  margin-bottom: 16px;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-.markdown-body h1 {
-  padding-bottom: 0.3em;
-  font-size: 2em;
-  border-bottom: 1px solid #eaecef;
-}
-
-.markdown-body h2 {
-  padding-bottom: 0.3em;
-  font-size: 1.5em;
-  border-bottom: 1px solid #eaecef;
 }
 
 /* 复制提示框样式 */
