@@ -2,6 +2,10 @@
 
 A streamlined web application for creating, editing, and managing prompts for Large Language Models (LLMs). This tool allows users to easily craft prompts with multiple attachments and preview the final output in markdown format.
 
+## Online Demo
+
+Access the online version: [LLM Prompt Builder](https://chengkande.github.io/promptbuilder/)
+
 ## Features
 
 - **Core Prompt Editor**: Write your main prompt with character count tracking
