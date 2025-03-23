@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import Markdown from 'vue3-markdown-it'
 import 'highlight.js/styles/github.css'
 
@@ -41,7 +41,19 @@ const totalOutputLength = computed(() => {
 })
 
 // Generate output markdown
-const outputMarkdown = computed(() => {
+// 添加防抖函数
+const debounce = (fn: Function, delay: number) => {
+  let timer: number | null = null
+  return (...args: any[]) => {
+    if (timer) clearTimeout(timer)
+    timer = setTimeout(() => fn(...args), delay)
+  }
+}
+
+// 修改outputMarkdown计算属性
+const isOutputStable = ref(true)
+const debouncedOutputMarkdown = ref<string>('')
+const updateDebouncedOutput = debounce(() => {
   let output = promptText.value + '\n\n'
   
   if (attachments.value.length > 0) {
@@ -50,8 +62,15 @@ const outputMarkdown = computed(() => {
     })
   }
   
-  return output
-})
+  debouncedOutputMarkdown.value = output
+  isOutputStable.value = true
+}, 500)
+
+// 监听相关数据变化
+watch([promptText, attachments], () => {
+  isOutputStable.value = false
+  updateDebouncedOutput()
+}, { deep: true })
 
 // 保存为XML文件
 const saveToXML = () => {
@@ -257,19 +276,21 @@ const addEmptyAttachment = () => {
 
 // Copy to clipboard
 const copyToClipboard = async () => {
+  if (!isOutputStable.value) return;
+  
   try {
-    await navigator.clipboard.writeText(outputMarkdown.value)
-    copyTipMessage.value = '已复制到剪贴板！'
-    showCopyTip.value = true
+    await navigator.clipboard.writeText(debouncedOutputMarkdown.value);
+    copyTipMessage.value = '已复制到剪贴板！';
+    showCopyTip.value = true;
     setTimeout(() => {
-      showCopyTip.value = false
-    }, 2000)
+      showCopyTip.value = false;
+    }, 2000);
   } catch (err) {
-    copyTipMessage.value = '复制失败：' + err
-    showCopyTip.value = true
+    copyTipMessage.value = '复制失败：' + err;
+    showCopyTip.value = true;
     setTimeout(() => {
-      showCopyTip.value = false
-    }, 3000)
+      showCopyTip.value = false;
+    }, 3000);
   }
 }
 
@@ -379,16 +400,16 @@ const triggerFileSelect = () => {
           <h2>Generated Prompt</h2>
           <div class="output-actions">
             <button @click="togglePreview" class="btn">{{ showPreview ? 'Text' : 'Preview' }}</button>
-            <button @click="copyToClipboard" class="btn">Copy</button>
+            <button @click="copyToClipboard" class="btn" :disabled="!isOutputStable">Copy</button>
           </div>
           <div class="total-length">Total: {{ totalOutputLength }} characters</div>
         </div>
         
         <div class="output-content">
           <div v-if="!showPreview" class="markdown-output">
-            <pre>{{ outputMarkdown }}</pre>
+            <pre>{{ debouncedOutputMarkdown }}</pre>
           </div>
-          <Markdown v-else :source="outputMarkdown" class="preview-output" />
+          <Markdown v-else :source="debouncedOutputMarkdown" class="preview-output" />
         </div>
       </div>
     </div>
@@ -782,5 +803,10 @@ h3 {
   85% { opacity: 1; transform: translateY(0); }
   100% { opacity: 0; transform: translateY(-10px); }
 }
-</style>
 
+button.btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+</style>
