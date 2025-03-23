@@ -19,6 +19,8 @@ const attachmentContent = ref<string>('')
 const showPreview = ref<boolean>(false)
 const showCopyTip = ref<boolean>(false)
 const copyTipMessage = ref<string>('')
+const editingAttachmentId = ref<string | null>(null)
+const editingAttachmentName = ref<string>('')
 
 // 初始化marked设置
 onMounted(() => {
@@ -66,6 +68,14 @@ onMounted(() => {
       setupCodeCopy()
     })
   }
+  
+  // 添加全局点击事件处理程序
+  document.addEventListener('click', (e) => {
+    // 如果正在编辑并且点击的不是输入框，则保存名称
+    if (editingAttachmentId.value && !(e.target as HTMLElement).classList.contains('edit-attachment-name')) {
+      saveAttachmentName()
+    }
+  })
 })
 
 // Calculate character count
@@ -193,18 +203,27 @@ const selectAttachment = (id: string) => {
   const attachment = attachments.value.find(a => a.id === id)
   if (attachment) {
     selectedAttachmentId.value = id
-    attachmentName.value = attachment.name
     attachmentContent.value = attachment.content
   }
 }
 
-// Real-time update attachment name
-const updateAttachmentName = (name: string) => {
-  if (selectedAttachmentId.value) {
-    const index = attachments.value.findIndex(a => a.id === selectedAttachmentId.value)
-    if (index !== -1) {
-      attachments.value[index].name = name
+// Start editing attachment name
+const startEditingName = (id: string, name: string) => {
+  // 选中附件
+  selectAttachment(id)
+  // 设置编辑状态
+  editingAttachmentId.value = id
+  editingAttachmentName.value = name
+}
+
+// Save edited attachment name
+const saveAttachmentName = () => {
+  if (editingAttachmentId.value) {
+    const index = attachments.value.findIndex(a => a.id === editingAttachmentId.value)
+    if (index !== -1 && editingAttachmentName.value.trim() !== '') {
+      attachments.value[index].name = editingAttachmentName.value.trim()
     }
+    editingAttachmentId.value = null
   }
 }
 
@@ -284,7 +303,23 @@ const togglePreview = () => {
               :class="['attachment-item', { 'selected': selectedAttachmentId === attachment.id }]"
               @click="selectAttachment(attachment.id)"
             >
-              <div class="attachment-name">{{ attachment.name }}</div>
+              <div 
+                v-if="editingAttachmentId !== attachment.id" 
+                class="attachment-name"
+                @dblclick="startEditingName(attachment.id, attachment.name)"
+              >
+                {{ attachment.name }}
+              </div>
+              <input
+                v-else
+                v-model="editingAttachmentName"
+                class="edit-attachment-name"
+                @blur="saveAttachmentName"
+                @keyup.enter="saveAttachmentName"
+                @click.stop
+                ref="editNameInput"
+                v-focus
+              />
               <div class="attachment-length">{{ attachment.content.length }} chars</div>
               <button @click.stop="deleteAttachment(attachment.id)" class="delete-btn">Delete</button>
             </div>
@@ -297,12 +332,6 @@ const togglePreview = () => {
         <div v-if="selectedAttachmentId" class="attachment-editor">
           <div class="editor-header">
             <h3>Edit Attachment</h3>
-            <input
-              v-model="attachmentName"
-              placeholder="Attachment name"
-              class="attachment-name-input"
-              @input="updateAttachmentName(attachmentName)"
-            />
           </div>
           <textarea
             v-model="attachmentContent"
@@ -429,9 +458,6 @@ h3 {
   flex: 1;
 }
 
-.prompt-textarea {
-}
-
 .char-count {
   margin-top: 5px;
   text-align: right;
@@ -487,6 +513,16 @@ h3 {
 .attachment-name {
   flex-grow: 1;
   font-weight: 500;
+  cursor: text;
+}
+
+.edit-attachment-name {
+  flex-grow: 1;
+  font-weight: 500;
+  padding: 3px 5px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  outline: none;
 }
 
 .attachment-length {
@@ -523,14 +559,6 @@ h3 {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
-}
-
-.attachment-name-input {
-  flex-grow: 1;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  margin-left: 10px;
 }
 
 .attachment-content-textarea {
