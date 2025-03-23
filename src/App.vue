@@ -245,6 +245,16 @@ const deleteAttachment = (id: string) => {
   }
 }
 
+// 添加空附件
+const addEmptyAttachment = () => {
+  const id = Date.now().toString() + Math.random().toString(36).substr(2, 5)
+  const name = `Untitled_${attachments.value.length + 1}`
+  attachments.value.push({ id, name, content: '' })
+  
+  // 自动选择新创建的附件
+  selectAttachment(id)
+}
+
 // Copy to clipboard
 const copyToClipboard = async () => {
   try {
@@ -312,6 +322,7 @@ const triggerFileSelect = () => {
           <div class="attachments-header">
             <h2>Attachments</h2>
             <div class="attachment-actions">
+              <button @click="addEmptyAttachment" class="add-btn" title="创建新附件">+</button>
               <button @click="addFromClipboard" class="btn">Paste</button>
               <div class="dropzone-hint">Drop files</div>
             </div>
@@ -665,6 +676,28 @@ h3 {
 
 .btn:hover {
   background-color: #2980b9;
+}
+
+.add-btn {
+  background-color: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background-color 0.2s;
+  padding: 0;
+  line-height: 1;
+}
+
+.add-btn:hover {
+  background-color: #219653;
 }
 
 @media (max-width: 768px) {
