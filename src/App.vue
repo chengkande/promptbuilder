@@ -353,6 +353,17 @@ const triggerFileSelect = () => {
     fileInputRef.value.click()
   }
 }
+
+// 添加clearAll方法
+const clearAll = () => {
+  // 清空提示文本
+  promptText.value = ''
+  // 清空所有附件
+  attachments.value = []
+  // 重置选中的附件
+  selectedAttachmentId.value = null
+  attachmentContent.value = ''
+}
 </script>
 
 <template>
@@ -367,6 +378,7 @@ const triggerFileSelect = () => {
             <div class="prompt-actions">
               <button @click="saveToXML" class="btn">Save</button>
               <button @click="triggerFileSelect" class="btn">Open</button>
+              <button @click="clearAll" class="btn">Clear</button>
               <input 
                 type="file" 
                 ref="fileInputRef" 
