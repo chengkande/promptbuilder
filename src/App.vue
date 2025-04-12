@@ -264,6 +264,51 @@ const deleteAttachment = (id: string) => {
   }
 }
 
+// 拖拽相关方法
+const draggedItem = ref<string | null>(null)
+const draggedOverItem = ref<string | null>(null)
+
+// 开始拖拽
+const dragStart = (id: string) => {
+  draggedItem.value = id
+}
+
+// 拖拽结束
+const dragEnd = () => {
+  draggedItem.value = null
+  draggedOverItem.value = null
+}
+
+// 拖拽经过某元素
+const dragOver = (event: DragEvent, id: string) => {
+  event.preventDefault()
+  if (id !== draggedItem.value) {
+    draggedOverItem.value = id
+  }
+}
+
+// 拖拽离开某元素
+const dragLeave = () => {
+  draggedOverItem.value = null
+}
+
+// 放置拖拽元素
+const drop = (event: DragEvent) => {
+  event.preventDefault()
+  if (draggedItem.value && draggedOverItem.value) {
+    // 找到两个元素的索引
+    const draggedIndex = attachments.value.findIndex(item => item.id === draggedItem.value)
+    const dropIndex = attachments.value.findIndex(item => item.id === draggedOverItem.value)
+    
+    if (draggedIndex !== -1 && dropIndex !== -1) {
+      // 将元素从原位置移除并插入到新位置
+      const [movedItem] = attachments.value.splice(draggedIndex, 1)
+      attachments.value.splice(dropIndex, 0, movedItem)
+    }
+  }
+  dragEnd()
+}
+
 // 添加空附件
 const addEmptyAttachment = () => {
   const id = Date.now().toString() + Math.random().toString(36).substr(2, 5)
@@ -353,9 +398,23 @@ const triggerFileSelect = () => {
             <div
               v-for="attachment in attachments"
               :key="attachment.id"
-              :class="['attachment-item', { 'selected': selectedAttachmentId === attachment.id }]"
+              :class="[
+                'attachment-item', 
+                { 
+                  'selected': selectedAttachmentId === attachment.id,
+                  'dragging': draggedItem === attachment.id,
+                  'drag-over': draggedOverItem === attachment.id
+                }
+              ]"
               @click="selectAttachment(attachment.id)"
+              draggable="true"
+              @dragstart="dragStart(attachment.id)"
+              @dragend="dragEnd"
+              @dragover="dragOver($event, attachment.id)"
+              @dragleave="dragLeave"
+              @drop="drop($event)"
             >
+              <div class="drag-handle">☰</div>
               <div 
                 v-if="editingAttachmentId !== attachment.id" 
                 class="attachment-name"
@@ -573,6 +632,21 @@ h3 {
 
 .attachment-item.selected {
   background-color: #e1f5fe;
+}
+
+.attachment-item.dragging {
+  opacity: 0.5;
+}
+
+.attachment-item.drag-over {
+  border: 2px dashed #3498db;
+}
+
+.drag-handle {
+  cursor: move;
+  color: #777;
+  margin-right: 8px;
+  user-select: none;
 }
 
 .attachment-name {
