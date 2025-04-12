@@ -577,9 +577,16 @@ h3 {
 
 .prompt-textarea{
   flex: 1;
+  padding: 2px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  resize: none;
+  outline: none;
 }
-.attachment-content-textarea {
-  flex: 1;
+
+.prompt-textarea:focus {
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
 }
 
 .char-count {
@@ -701,13 +708,19 @@ h3 {
 }
 
 .attachment-content-textarea {
-  width: 100%;
+  flex: 1;
   padding: 10px;
   border: 1px solid #ddd;
   border-radius: 4px;
   resize: none;
   font-size: 14px;
+  outline: none;
   overflow-y: auto;
+}
+
+.attachment-content-textarea:focus {
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
 }
 
 .output-header {
